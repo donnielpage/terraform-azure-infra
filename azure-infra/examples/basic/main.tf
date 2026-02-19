@@ -9,6 +9,10 @@
 # identity's access beyond the two default roles (Key Vault Secrets User and
 # Storage Blob Data Reader) without modifying any child module.
 #
+# The subscription ID and resource group name are derived automatically from the
+# authenticated provider via data.azurerm_client_config.current and the module's
+# own output — no manual editing or variable files required.
+#
 # To run this example:
 #   terraform init
 #   terraform plan
@@ -28,6 +32,11 @@ terraform {
 provider "azurerm" {
   features {}
 }
+
+# Reads the subscription ID and tenant ID from the authenticated provider
+# session. Works with any auth method: az login, service principal,
+# managed identity, environment variables, etc.
+data "azurerm_client_config" "current" {}
 
 module "azure_infra" {
   source = "../.."
@@ -73,12 +82,13 @@ module "azure_infra" {
   #   - "Key Vault Secrets User"    on the landing zone Key Vault
   #   - "Storage Blob Data Reader"  on the landing zone Storage Account
   #
-  # The entry below demonstrates adding a Log Analytics Contributor role
-  # at the resource group scope, showing how the caller can extend access
-  # without touching either child module.
+  # The entry below grants Log Analytics Contributor scoped to the resource
+  # group this module creates. Both the subscription ID and resource group
+  # name are resolved automatically — no hardcoded values or placeholder
+  # substitution required.
   identity_role_assignments = {
     log_analytics_contributor = {
-      scope                = "/subscriptions/<subscription_id>/resourceGroups/itential-dev-rg"
+      scope                = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${module.azure_infra.resource_group_name}"
       role_definition_name = "Log Analytics Contributor"
     }
   }
